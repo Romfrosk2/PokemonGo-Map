@@ -3,6 +3,7 @@
 //
 
 var $selectExclude
+var $selectExcludeRarity
 var $selectPokemonNotify
 var $selectRarityNotify
 var $selectStyle
@@ -21,6 +22,7 @@ var languageLookupThreshold = 3
 var searchMarkerStyles
 
 var excludedPokemon = []
+var excludedRarity = []
 var notifiedPokemon = []
 var notifiedRarity = []
 
@@ -784,9 +786,29 @@ function clearStaleMarkers () {
     }
   })
 
+  $.each(mapData.pokemons, function (key, value) {
+    if (mapData.pokemons[key]['disappear_time'] < new Date().getTime() ||
+      excludedRarity.indexOf(mapData.pokemons[key]['pokemon_id']) >= 0) {
+      if (mapData.pokemons[key].marker.rangeCircle) {
+        mapData.pokemons[key].marker.rangeCircle.setMap(null)
+        delete mapData.pokemons[key].marker.rangeCircle
+      }
+      mapData.pokemons[key].marker.setMap(null)
+      delete mapData.pokemons[key]
+    }
+  })
+
   $.each(mapData.lurePokemons, function (key, value) {
     if (mapData.lurePokemons[key]['lure_expiration'] < new Date().getTime() ||
       excludedPokemon.indexOf(mapData.lurePokemons[key]['pokemon_id']) >= 0) {
+      mapData.lurePokemons[key].marker.setMap(null)
+      delete mapData.lurePokemons[key]
+    }
+  })
+
+  $.each(mapData.lurePokemons, function (key, value) {
+    if (mapData.lurePokemons[key]['lure_expiration'] < new Date().getTime() ||
+      excludedRarity.indexOf(mapData.lurePokemons[key]['pokemon_id']) >= 0) {
       mapData.lurePokemons[key].marker.setMap(null)
       delete mapData.lurePokemons[key]
     }
@@ -902,6 +924,14 @@ function processPokemons (i, item) {
 
   if (!(item['encounter_id'] in mapData.pokemons) &&
     excludedPokemon.indexOf(item['pokemon_id']) < 0) {
+    // add marker to map and item to dict
+    if (item.marker) {
+      item.marker.setMap(null)
+    }
+  }
+
+  if (!(item['encounter_id'] in mapData.pokemons) &&
+    excludedRarity.indexOf(item['pokemon_rarity']) < 0) {
     // add marker to map and item to dict
     if (item.marker) {
       item.marker.setMap(null)
@@ -1432,6 +1462,7 @@ $(function () {
   }
 
   $selectExclude = $('#exclude-pokemon')
+  $selectExcludeRarity = $('#exclude-rarity')
   $selectPokemonNotify = $('#notify-pokemon')
   $selectRarityNotify = $('#notify-rarity')
   var numberOfPokemon = 151
@@ -1467,6 +1498,11 @@ $(function () {
       data: pokeList,
       templateResult: formatState
     })
+    $selectExcludeRarity.select2({
+      placeholder: i8ln('Select Rarity'),
+      data: [i8ln('Common'), i8ln('Uncommon'), i8ln('Rare'), i8ln('Very Rare'), i8ln('Ultra Rare')],
+      templateResult: formatState
+    })
     $selectPokemonNotify.select2({
       placeholder: i8ln('Select Pokémon'),
       data: pokeList,
@@ -1481,8 +1517,12 @@ $(function () {
     // setup list change behavior now that we have the list to work from
     $selectExclude.on('change', function (e) {
       excludedPokemon = $selectExclude.val().map(Number)
-      clearStaleMarkers()
       Store.set('remember_select_exclude', excludedPokemon)
+    })
+    $selectExcludeRarity.on('change', function (e) {
+      excludedRarity = $selectExcludeRarity.val().map(String)
+      clearStaleMarkers()
+      Store.set('remember_select_rarity_exclude', excludedRarity)
     })
     $selectPokemonNotify.on('change', function (e) {
       notifiedPokemon = $selectPokemonNotify.val().map(Number)
@@ -1495,6 +1535,7 @@ $(function () {
 
     // recall saved lists
     $selectExclude.val(Store.get('remember_select_exclude')).trigger('change')
+    $selectExcludeRarity.val(Store.get('remember_select_rarity_exclude')).trigger('change')
     $selectPokemonNotify.val(Store.get('remember_select_notify')).trigger('change')
     $selectRarityNotify.val(Store.get('remember_select_rarity_notify')).trigger('change')
 
